@@ -8,7 +8,20 @@ echo "::group::Refreshing metadata"
 if [[ -e /var/cache/dnf/last_makecache ]]; then
     old_time=$(timestamp)
 fi
-dnf makecache --timer
+
+retries=0
+until dnf makecache --timer; do
+    last_rc=$?
+    let retries=$retries+1
+    if [[ $retries -ge 5 ]]; then
+        echo "::error::Failed to update dnf metadata cache"
+        exit $last_rc
+    else
+        echo "Failed to update dnf metadata cache, retrying ($retries/5)"
+        rm /var/cache/dnf/last_makecache
+    fi
+done
+
 new_time=$(timestamp)
 
 echo time=$new_time >> $GITHUB_OUTPUT
