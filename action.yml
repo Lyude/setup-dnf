@@ -65,9 +65,9 @@ runs:
       id: arg-hash
       shell: bash
       run: |
-        cat > ${RUNNER_TMP}/dnf-hash <<- _EOF_
+        cat > ${RUNNER_TMP}/dnf-hash <<- _EOF_${{ github.run_id }}_
         ${{ toJSON(inputs) }}
-        _EOF_
+        _EOF_${{ github.run_id }}_
         echo hash=$(md5sum ${RUNNER_TMP}/dnf-hash | grep -Po '^[0-9a-f]+') >> $GITHUB_OUTPUT
 
     - name: Restore dnf cache
