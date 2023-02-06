@@ -1,0 +1,106 @@
+name: 'Setup dnf'
+description: >
+  Update and/or install packages on the system using the dnf package manager, and provides caching.
+  Assumes use of a container with dnf installed.
+branding:
+  color: blue
+  icon: package
+inputs:
+  update:
+    description: "Upgrade packages on the system before installing any packages using 'dnf update'."
+    required: false
+    default: false
+  install:
+    description: Packages to install using dnf.
+    required: false
+    default: false
+  weak-deps:
+    description: >
+      Whether or not to install weak dependencies. This is the equivalent of passing
+      --setopt=install_weak_deps=<true|false> to dnf.
+    required: false
+    default: false
+  docs:
+    description: >
+      Whether or not to install package documentation. This is the equivalent of passing --nodocs to
+      dnf.
+    required: false
+    default: false
+  prefix-key:
+    description: >
+      A string to prefix the cache key with. This can be changed to start a new cache manually.
+    required: false
+    default: "dnf"
+  restore-cache:
+    description: Whether or not to restore the latest available dnf cache before running.
+    required: false
+    default: true
+  save-cache:
+    description: Whether or not to save the dnf cache after running.
+    required: false
+    default: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Read os-release
+      id: os-release
+      shell: bash
+      run: |
+        source /etc/os-release
+        echo version=$ID-$VERSION_ID >> $GITHUB_OUTPUT
+
+    - name: Setup environment variables
+      shell: bash
+      run: |
+        dnf_opts=-y
+        dnf_opts+=' --setopt=keepcache=true'
+        dnf_opts+=' --setopt=install_weak_deps=${{ inputs.weak-deps }}'
+        if ! ${{ inputs.docs }}; then
+            dnf_opts+=' --setopt=tsflags=nodocs'
+        fi
+        echo DNF_OPTS=$dnf_opts >> $GITHUB_ENV
+
+    - name: Generate hash from args
+      id: arg-hash
+      shell: bash
+      run: |
+        cat > ${RUNNER_TMP}/dnf-hash <<- _EOF_
+        ${{ toJSON(inputs) }}
+        _EOF_
+        echo hash=$(md5sum ${RUNNER_TMP}/dnf-hash | grep -Po '^[0-9a-f]+') >> $GITHUB_OUTPUT
+
+    - name: Restore dnf cache
+      id: cache
+      if: "${{ inputs.restore-cache == 'true' }}"
+      uses: actions/cache/restore@v3
+      with:
+        key: "${{ inputs.prefix-key }}-${{ steps.os-release.outputs.version }}-${{ steps.arg-hash.outputs.hash }}"
+        path: /var/cache/dnf
+
+    - name: Update dnf metadata cache
+      id: dnf-metadata
+      shell: bash
+      run: $GITHUB_ACTION_PATH/dnf-makecache.sh
+
+    - name: Update packages
+      if: "${{ inputs.update == 'true' }}"
+      shell: bash
+      run: dnf update $DNF_OPTS
+
+    - name: Install additional packages
+      if: "${{ inputs.install != 'false' }}"
+      run: dnf install $DNF_OPTS ${{ inputs.install }}
+      shell: bash
+
+    - name: Prune dnf package cache
+      if: "${{ steps.dnf-metadata.outputs.refreshed == '1' }}"
+      run: $GITHUB_ACTION_PATH/dnf-prune.sh
+      shell: bash
+
+    - name: Save dnf cache
+      uses: actions/cache/save@v3
+      if: "${{ inputs.save-cache == 'true' && steps.dnf-metadata.outputs.refreshed == '1' }}"
+      with:
+        key: "${{ inputs.prefix-key }}-${{ steps.os-release.outputs.version }}-${{ steps.arg-hash.outputs.hash }}-${{ steps.dnf-metadata.outputs.time }}"
+        path: /var/cache/dnf
