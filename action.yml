@@ -61,13 +61,14 @@ runs:
         fi
         echo DNF_OPTS=$dnf_opts >> $GITHUB_ENV
 
-    - name: Generate hash from args
-      id: arg-hash
+    - name: Generate hash
+      id: hash
       shell: bash
       run: |
         cat > ${RUNNER_TMP}/dnf-hash <<- _EOF_${{ github.run_id }}_
         ${{ toJSON(inputs) }}
         _EOF_${{ github.run_id }}_
+        rpm -qa >> ${RUNNER_TMP}/dnf-hash
         echo hash=$(md5sum ${RUNNER_TMP}/dnf-hash | grep -Po '^[0-9a-f]+') >> $GITHUB_OUTPUT
 
     - name: Restore dnf cache
@@ -75,7 +76,7 @@ runs:
       if: "${{ inputs.restore-cache == 'true' }}"
       uses: actions/cache/restore@v3
       with:
-        key: "${{ inputs.prefix-key }}-${{ steps.os-release.outputs.version }}-${{ steps.arg-hash.outputs.hash }}"
+        key: "${{ inputs.prefix-key }}-${{ steps.os-release.outputs.version }}-${{ steps.hash.outputs.hash }}"
         path: /var/cache/dnf
 
     - name: Update dnf metadata cache
@@ -102,5 +103,5 @@ runs:
       uses: actions/cache/save@v3
       if: "${{ inputs.save-cache == 'true' && steps.dnf-metadata.outputs.refreshed == '1' }}"
       with:
-        key: "${{ inputs.prefix-key }}-${{ steps.os-release.outputs.version }}-${{ steps.arg-hash.outputs.hash }}-${{ steps.dnf-metadata.outputs.time }}"
+        key: "${{ inputs.prefix-key }}-${{ steps.os-release.outputs.version }}-${{ steps.hash.outputs.hash }}-${{ steps.dnf-metadata.outputs.time }}"
         path: /var/cache/dnf
