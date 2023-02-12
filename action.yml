@@ -78,7 +78,7 @@ runs:
           ${{ toJSON(inputs) }}
           _EOF_${{ github.run_id }}_
           rpm -qa
-        ) | md5sum - | cut -d ' ' -f 1 >> $GITHUB_OUTPUT
+        ) | sha256sum - | cut -d ' ' -f 1 >> $GITHUB_OUTPUT
 
     - name: Restore dnf cache
       id: cache
