@@ -39,6 +39,13 @@ inputs:
     description: Whether or not to save the dnf cache after running.
     required: false
     default: true
+  metadata-expire:
+    description: >
+      How many hours to wait before considering the metadata cache out of date. This is the
+      equivalent of passing both --setopt=metadata_timer_sync=<time>h and
+      --setopt=metadata_expire=<time + 1>h to dnf.
+    required: false
+    default: 24
 
 runs:
   using: "composite"
@@ -56,6 +63,8 @@ runs:
         dnf_opts=-y
         dnf_opts+=' --setopt=keepcache=true'
         dnf_opts+=' --setopt=install_weak_deps=${{ inputs.weak-deps }}'
+        dnf_opts+=" --setopt=metadata_timer_sync=${{ inputs.metadata-expire }}h"
+        dnf_opts+=" --setopt=metadata_expire=$[${{ inputs.metadata-expire }} + 1]h"
         if ! ${{ inputs.docs }}; then
             dnf_opts+=' --setopt=tsflags=nodocs'
         fi
