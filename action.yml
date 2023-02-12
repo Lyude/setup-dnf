@@ -73,12 +73,12 @@ runs:
       id: hash
       shell: bash
       run: |
-        (
-          cat <<- _EOF_${{ github.run_id }}_
-          ${{ toJSON(inputs) }}
-          _EOF_${{ github.run_id }}_
-          rpm -qa
-        ) | sha256sum - | cut -d ' ' -f 1 >> $GITHUB_OUTPUT
+        echo hash=$((
+        cat <<- _EOF_${{ github.run_id }}_
+        ${{ toJSON(inputs) }}
+        _EOF_${{ github.run_id }}_
+        rpm -qa
+        ) | sha256sum - | cut -d ' ' -f 1) >> $GITHUB_OUTPUT
 
     - name: Restore dnf cache
       id: cache
