@@ -10,7 +10,7 @@ if [[ -e /var/cache/dnf/last_makecache ]]; then
 fi
 
 retries=0
-until dnf makecache --timer; do
+until dnf makecache --timer $DNF_OPTS; do
     last_rc=$?
     let retries=$retries+1
     if [[ $retries -ge 5 ]]; then
