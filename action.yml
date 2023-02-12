@@ -73,11 +73,12 @@ runs:
       id: hash
       shell: bash
       run: |
-        cat > ${RUNNER_TMP}/dnf-hash <<- _EOF_${{ github.run_id }}_
-        ${{ toJSON(inputs) }}
-        _EOF_${{ github.run_id }}_
-        rpm -qa >> ${RUNNER_TMP}/dnf-hash
-        echo hash=$(md5sum ${RUNNER_TMP}/dnf-hash | grep -Po '^[0-9a-f]+') >> $GITHUB_OUTPUT
+        (
+          cat <<- _EOF_${{ github.run_id }}_
+          ${{ toJSON(inputs) }}
+          _EOF_${{ github.run_id }}_
+          rpm -qa
+        ) | md5sum - | cut -d ' ' -f 1 >> $GITHUB_OUTPUT
 
     - name: Restore dnf cache
       id: cache
